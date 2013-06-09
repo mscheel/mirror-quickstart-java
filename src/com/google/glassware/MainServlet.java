@@ -134,6 +134,21 @@ public class MainServlet extends HttpServlet {
 		InputStream videoStream = url.openStream();
 		MirrorClient.insertTimelineItem(credential, timelineItem,
 				contentType, videoStream);
+    } else if(req.getParameter("operation").equals("insertAnimatedGIF")) {
+    	//note: as of XE5 and XE6 this does not work, here are the results of various content types:
+    	//	image/jpeg - see first frame of animated gif
+    	//	image/gif - see black screen (will see text if any set)
+    	//	video/mp4 - see nothing
+        TimelineItem timelineItem = new TimelineItem();
+        timelineItem.setText("");
+        timelineItem.setNotification(new NotificationConfig().setLevel("DEFAULT"));
+    	// Attach animated GIF
+		String contentType = req.getParameter("contentType");
+		URL url = new URL(req.getParameter("imageUrl"));
+		byte[] b = ByteStreams.toByteArray(url.openStream());
+		InputStream animatedGifStream = url.openStream();
+		MirrorClient.insertTimelineItem(credential, timelineItem,
+				contentType, animatedGifStream);
     } else if (req.getParameter("operation").equals("insertItemWithAction")) {
       LOG.fine("Inserting Timeline Item");
       TimelineItem timelineItem = new TimelineItem();

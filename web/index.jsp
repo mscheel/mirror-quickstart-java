@@ -180,6 +180,15 @@ limitations under the License.
                "static/images/sweetie-wobbly-cat-326x134.png" %>">
       </form>
       <br>
+        <form action="<%= WebUtil.buildUrl(request, "/main") %>" method="post">
+        <input type="hidden" name="operation" value="insertAnimatedGIF">
+         <input type="hidden" name="imageUrl" value="<%= appBaseUrl +
+               "static/images/animated.gif" %>">
+        <input type="hidden" name="contentType" value="image/jpeg">
+        <input type="hidden" name="message" value="Animated Gif">
+        <button class="btn" type="submit">An animated GIF</button>
+      </form>
+      <br><br>
       <form action="<%= WebUtil.buildUrl(request, "/main") %>" method="post">
         <input type="hidden" name="operation" value="insertItemWithAction">
         <button class="btn" type="submit">A card you can reply to</button>
