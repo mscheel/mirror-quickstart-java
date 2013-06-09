@@ -126,17 +126,14 @@ public class MainServlet extends HttpServlet {
     
     } else if(req.getParameter("operation").equals("insertVideo")) {
         TimelineItem timelineItem = new TimelineItem();
-        timelineItem.setText("Sweetie the wobbly cat");
+        timelineItem.setText(req.getParameter("message"));
     	// Attach a video, if we have one
-		String contentType = req.getParameter("contentType");
-		URL url = new URL("http://localhost:8888/static/videos/sweetie-wobbly-cat-720p.mp4");
-		//video/* won't work, use video/mp4
-		contentType = "video/mp4";
+		URL url = new URL(req.getParameter("imageUrl"));
+        String contentType = req.getParameter("contentType");
 		byte[] b = ByteStreams.toByteArray(url.openStream());
-		int i = b.length;
-		InputStream temp = url.openStream();
+		InputStream videoStream = url.openStream();
 		MirrorClient.insertTimelineItem(credential, timelineItem,
-				contentType, temp);
+				contentType, videoStream);
     } else if (req.getParameter("operation").equals("insertItemWithAction")) {
       LOG.fine("Inserting Timeline Item");
       TimelineItem timelineItem = new TimelineItem();
