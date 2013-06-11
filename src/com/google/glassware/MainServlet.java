@@ -47,193 +47,233 @@ import com.google.common.io.ByteStreams;
  */
 public class MainServlet extends HttpServlet {
 
-  /**
-   * Private class to process batch request results.
-   * 
-   * For more information, see
-   * https://code.google.com/p/google-api-java-client/wiki/Batch.
-   */
-  private final class BatchCallback extends JsonBatchCallback<TimelineItem> {
-    private int success = 0;
-    private int failure = 0;
+	/**
+	 * Private class to process batch request results.
+	 * 
+	 * For more information, see
+	 * https://code.google.com/p/google-api-java-client/wiki/Batch.
+	 */
+	private final class BatchCallback extends JsonBatchCallback<TimelineItem> {
+		private int success = 0;
+		private int failure = 0;
 
-    @Override
-    public void onSuccess(TimelineItem item, HttpHeaders headers) throws IOException {
-      ++success;
-    }
+		@Override
+		public void onSuccess(TimelineItem item, HttpHeaders headers)
+				throws IOException {
+			++success;
+		}
 
-    @Override
-    public void onFailure(GoogleJsonError error, HttpHeaders headers) throws IOException {
-      ++failure;
-      LOG.info("Failed to insert item: " + error.getMessage());
-    }
-  }
+		@Override
+		public void onFailure(GoogleJsonError error, HttpHeaders headers)
+				throws IOException {
+			++failure;
+			LOG.info("Failed to insert item: " + error.getMessage());
+		}
+	}
 
-  private static final Logger LOG = Logger.getLogger(MainServlet.class.getSimpleName());
-  public static final String CONTACT_NAME = "Java Quick Start";
+	private static final Logger LOG = Logger.getLogger(MainServlet.class
+			.getSimpleName());
+	public static final String CONTACT_NAME = "Java Quick Start";
 
-  /**
-   * Do stuff when buttons on index.jsp are clicked
-   */
-  @Override
-  protected void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
+	/**
+	 * Do stuff when buttons on index.jsp are clicked
+	 */
+	@Override
+	protected void doPost(HttpServletRequest req, HttpServletResponse res)
+			throws IOException {
 
-    String userId = AuthUtil.getUserId(req);
-    Credential credential = AuthUtil.newAuthorizationCodeFlow().loadCredential(userId);
-    String message = "";
+		String userId = AuthUtil.getUserId(req);
+		Credential credential = AuthUtil.newAuthorizationCodeFlow()
+				.loadCredential(userId);
+		String message = "";
 
-    if (req.getParameter("operation").equals("insertSubscription")) {
+		if (req.getParameter("operation").equals("insertSubscription")) {
 
-      // subscribe (only works deployed to production)
-      try {
-        MirrorClient.insertSubscription(credential, WebUtil.buildUrl(req, "/notify"), userId,
-            req.getParameter("collection"));
-        message = "Application is now subscribed to updates.";
-      } catch (GoogleJsonResponseException e) {
-        LOG.warning("Could not subscribe " + WebUtil.buildUrl(req, "/notify") + " because "
-            + e.getDetails().toPrettyString());
-        message = "Failed to subscribe. Check your log for details";
-      }
+			// subscribe (only works deployed to production)
+			try {
+				MirrorClient.insertSubscription(credential,
+						WebUtil.buildUrl(req, "/notify"), userId,
+						req.getParameter("collection"));
+				message = "Application is now subscribed to updates.";
+			} catch (GoogleJsonResponseException e) {
+				LOG.warning("Could not subscribe "
+						+ WebUtil.buildUrl(req, "/notify") + " because "
+						+ e.getDetails().toPrettyString());
+				message = "Failed to subscribe. Check your log for details";
+			}
 
-    } else if (req.getParameter("operation").equals("deleteSubscription")) {
+		} else if (req.getParameter("operation").equals("deleteSubscription")) {
 
-      // subscribe (only works deployed to production)
-      MirrorClient.deleteSubscription(credential, req.getParameter("subscriptionId"));
+			// subscribe (only works deployed to production)
+			MirrorClient.deleteSubscription(credential,
+					req.getParameter("subscriptionId"));
 
-      message = "Application has been unsubscribed.";
+			message = "Application has been unsubscribed.";
 
-    } else if (req.getParameter("operation").equals("insertItem")) {
-      LOG.fine("Inserting Timeline Item");
-      TimelineItem timelineItem = new TimelineItem();
+		} else if (req.getParameter("operation").equals("insertItem")) {
+			LOG.fine("Inserting Timeline Item");
+			TimelineItem timelineItem = new TimelineItem();
 
-      if (req.getParameter("message") != null) {
-        timelineItem.setText(req.getParameter("message"));
-      }
+			if (req.getParameter("message") != null) {
+				timelineItem.setText(req.getParameter("message"));
+			}
 
-      // Triggers an audible tone when the timeline item is received
-      timelineItem.setNotification(new NotificationConfig().setLevel("DEFAULT"));
+			// Triggers an audible tone when the timeline item is received
+			timelineItem.setNotification(new NotificationConfig()
+					.setLevel("DEFAULT"));
 
-      if (req.getParameter("imageUrl") != null) {
-        // Attach an image, if we have one
-        URL url = new URL(req.getParameter("imageUrl"));
-        String contentType = req.getParameter("contentType");
-        MirrorClient.insertTimelineItem(credential, timelineItem, contentType, url.openStream());
-      } else {
-        MirrorClient.insertTimelineItem(credential, timelineItem);
-      }
+			if (req.getParameter("imageUrl") != null) {
+				// Attach an image, if we have one
+				URL url = new URL(req.getParameter("imageUrl"));
+				String contentType = req.getParameter("contentType");
+				MirrorClient.insertTimelineItem(credential, timelineItem,
+						contentType, url.openStream());
+			} else {
+				MirrorClient.insertTimelineItem(credential, timelineItem);
+			}
 
-      message = "A timeline item has been inserted.";
-    
-    } else if(req.getParameter("operation").equals("insertVideo")) {
-        TimelineItem timelineItem = new TimelineItem();
-        timelineItem.setText(req.getParameter("message"));
-    	// Attach a video, if we have one
-		URL url = new URL(req.getParameter("imageUrl"));
-        String contentType = req.getParameter("contentType");
-		byte[] b = ByteStreams.toByteArray(url.openStream());
-		InputStream videoStream = url.openStream();
-		MirrorClient.insertTimelineItem(credential, timelineItem,
-				contentType, videoStream);
-    } else if(req.getParameter("operation").equals("insertAnimatedGIF")) {
-    	//note: as of XE5 and XE6 this does not work, here are the results of various content types:
-    	//	image/jpeg - see first frame of animated gif
-    	//	image/gif - see black screen (will see text if any set)
-    	//	video/mp4 - see nothing
-        TimelineItem timelineItem = new TimelineItem();
-        timelineItem.setText("");
-        timelineItem.setNotification(new NotificationConfig().setLevel("DEFAULT"));
-    	// Attach animated GIF
-		String contentType = req.getParameter("contentType");
-		URL url = new URL(req.getParameter("imageUrl"));
-		byte[] b = ByteStreams.toByteArray(url.openStream());
-		InputStream animatedGifStream = url.openStream();
-		MirrorClient.insertTimelineItem(credential, timelineItem,
-				contentType, animatedGifStream);
-    } else if (req.getParameter("operation").equals("insertItemWithAction")) {
-      LOG.fine("Inserting Timeline Item");
-      TimelineItem timelineItem = new TimelineItem();
-      timelineItem.setText("Tell me what you had for lunch :)");
+			message = "A timeline item has been inserted.";
 
-      List<MenuItem> menuItemList = new ArrayList<MenuItem>();
-      // Built in actions
-      menuItemList.add(new MenuItem().setAction("REPLY"));
-      menuItemList.add(new MenuItem().setAction("READ_ALOUD"));
+		} else if (req.getParameter("operation").equals("insertVideo")) {
+			TimelineItem timelineItem = new TimelineItem();
+			timelineItem.setText(req.getParameter("message"));
+			// Attach a video, if we have one
+			URL url = new URL(req.getParameter("videoUrl"));
+			String contentType = req.getParameter("contentType");
+			byte[] b = ByteStreams.toByteArray(url.openStream());
+			InputStream videoStream = url.openStream();
+			MirrorClient.insertTimelineItem(credential, timelineItem,
+					contentType, videoStream);
+		} else if (req.getParameter("operation").equals("insertAnimatedGIF")) {
 
-      // And custom actions
-      List<MenuValue> menuValues = new ArrayList<MenuValue>();
-      menuValues.add(new MenuValue().setIconUrl(WebUtil.buildUrl(req, "/static/images/drill.png"))
-          .setDisplayName("Drill In"));
-      menuItemList.add(new MenuItem().setValues(menuValues).setId("drill").setAction("CUSTOM"));
+			// Method A: Standard attachment
 
-      timelineItem.setMenuItems(menuItemList);
-      timelineItem.setNotification(new NotificationConfig().setLevel("DEFAULT"));
+			// note: as of XE5 and XE6 this does not work, here are the results
+			// of various content types:
+			// image/jpeg - see first frame of animated gif
+			// image/gif - see black screen (will see text if any set)
+			// video/mp4 - see nothing
+			// TimelineItem timelineItem = new TimelineItem();
+			// timelineItem.setText("");
+			// timelineItem.setNotification(new
+			// NotificationConfig().setLevel("DEFAULT"));
+			// // Attach animated GIF
+			// String contentType = req.getParameter("contentType");
+			// URL url = new URL(req.getParameter("imageUrl"));
+			// byte[] b = ByteStreams.toByteArray(url.openStream());
+			// InputStream animatedGifStream = url.openStream();
+			// MirrorClient.insertTimelineItem(credential, timelineItem,
+			// contentType, animatedGifStream);
 
-      MirrorClient.insertTimelineItem(credential, timelineItem);
+			// Method B: HTML references attachment
 
-      message = "A timeline item with actions has been inserted.";
+			// note: How to do this pointed out by Jenny Murphy here -
+			// https://code.google.com/p/google-glass-api/issues/detail?id=101
+			// reference -
+			// https://developers.google.com/glass/v1/reference/timeline#attachments
 
-    } else if (req.getParameter("operation").equals("insertContact")) {
-      if (req.getParameter("iconUrl") == null || req.getParameter("name") == null) {
-        message = "Must specify iconUrl and name to insert contact";
-      } else {
-        // Insert a contact
-        LOG.fine("Inserting contact Item");
-        Contact contact = new Contact();
-        contact.setId(req.getParameter("name"));
-        contact.setDisplayName(req.getParameter("name"));
-        contact.setImageUrls(Lists.newArrayList(req.getParameter("iconUrl")));
-        MirrorClient.insertContact(credential, contact);
+			TimelineItem timelineItem = new TimelineItem();
+			timelineItem.setText("");
+			timelineItem.setNotification(new NotificationConfig()
+					.setLevel("DEFAULT"));
+			//add html with reference to attachment using index 0
+			timelineItem.setHtml("<img src=\"attachment:0\">");
+			// Attach animated GIF
+			String contentType = req.getParameter("contentType");
+			URL url = new URL(req.getParameter("imageUrl"));
+			byte[] b = ByteStreams.toByteArray(url.openStream());
+			InputStream animatedGifStream = url.openStream();
+			MirrorClient.insertTimelineItem(credential, timelineItem,
+					contentType, animatedGifStream);
+		} else if (req.getParameter("operation").equals("insertItemWithAction")) {
+			LOG.fine("Inserting Timeline Item");
+			TimelineItem timelineItem = new TimelineItem();
+			timelineItem.setText("Tell me what you had for lunch :)");
 
-        message = "Inserted contact: " + req.getParameter("name");
-      }
+			List<MenuItem> menuItemList = new ArrayList<MenuItem>();
+			// Built in actions
+			menuItemList.add(new MenuItem().setAction("REPLY"));
+			menuItemList.add(new MenuItem().setAction("READ_ALOUD"));
 
-    } else if (req.getParameter("operation").equals("deleteContact")) {
+			// And custom actions
+			List<MenuValue> menuValues = new ArrayList<MenuValue>();
+			menuValues.add(new MenuValue().setIconUrl(
+					WebUtil.buildUrl(req, "/static/images/drill.png"))
+					.setDisplayName("Drill In"));
+			menuItemList.add(new MenuItem().setValues(menuValues)
+					.setId("drill").setAction("CUSTOM"));
 
-      // Insert a contact
-      LOG.fine("Deleting contact Item");
-      MirrorClient.deleteContact(credential, req.getParameter("id"));
+			timelineItem.setMenuItems(menuItemList);
+			timelineItem.setNotification(new NotificationConfig()
+					.setLevel("DEFAULT"));
 
-      message = "Contact has been deleted.";
+			MirrorClient.insertTimelineItem(credential, timelineItem);
 
-    } else if (req.getParameter("operation").equals("insertItemAllUsers")) {
-      if (req.getServerName().contains("glass-java-starter-demo.appspot.com")) {
-        message = "This function is disabled on the demo instance.";
-      }
+			message = "A timeline item with actions has been inserted.";
 
-      // Insert a contact
-      List<String> users = AuthUtil.getAllUserIds();
-      LOG.info("found " + users.size() + " users");
-      if (users.size() > 10) {
-        // We wouldn't want you to run out of quota on your first day!
-        message =
-            "Total user count is " + users.size() + ". Aborting broadcast " + "to save your quota.";
-      } else {
-        TimelineItem allUsersItem = new TimelineItem();
-        allUsersItem.setText("Hello Everyone!");
+		} else if (req.getParameter("operation").equals("insertContact")) {
+			if (req.getParameter("iconUrl") == null
+					|| req.getParameter("name") == null) {
+				message = "Must specify iconUrl and name to insert contact";
+			} else {
+				// Insert a contact
+				LOG.fine("Inserting contact Item");
+				Contact contact = new Contact();
+				contact.setId(req.getParameter("name"));
+				contact.setDisplayName(req.getParameter("name"));
+				contact.setImageUrls(Lists.newArrayList(req
+						.getParameter("iconUrl")));
+				MirrorClient.insertContact(credential, contact);
 
-        BatchRequest batch = MirrorClient.getMirror(null).batch();
-        BatchCallback callback = new BatchCallback();
+				message = "Inserted contact: " + req.getParameter("name");
+			}
 
-        // TODO: add a picture of a cat
-        for (String user : users) {
-          Credential userCredential = AuthUtil.getCredential(user);
-          MirrorClient.getMirror(userCredential).timeline().insert(allUsersItem)
-              .queue(batch, callback);
-        }
+		} else if (req.getParameter("operation").equals("deleteContact")) {
 
-        batch.execute();
-        message =
-            "Successfully sent cards to " + callback.success + " users (" + callback.failure
-                + " failed).";
-      }
+			// Insert a contact
+			LOG.fine("Deleting contact Item");
+			MirrorClient.deleteContact(credential, req.getParameter("id"));
 
+			message = "Contact has been deleted.";
 
-    } else {
-      String operation = req.getParameter("operation");
-      LOG.warning("Unknown operation specified " + operation);
-      message = "I don't know how to do that";
-    }
-    WebUtil.setFlash(req, message);
-    res.sendRedirect(WebUtil.buildUrl(req, "/"));
-  }
+		} else if (req.getParameter("operation").equals("insertItemAllUsers")) {
+			if (req.getServerName().contains(
+					"glass-java-starter-demo.appspot.com")) {
+				message = "This function is disabled on the demo instance.";
+			}
+
+			// Insert a contact
+			List<String> users = AuthUtil.getAllUserIds();
+			LOG.info("found " + users.size() + " users");
+			if (users.size() > 10) {
+				// We wouldn't want you to run out of quota on your first day!
+				message = "Total user count is " + users.size()
+						+ ". Aborting broadcast " + "to save your quota.";
+			} else {
+				TimelineItem allUsersItem = new TimelineItem();
+				allUsersItem.setText("Hello Everyone!");
+
+				BatchRequest batch = MirrorClient.getMirror(null).batch();
+				BatchCallback callback = new BatchCallback();
+
+				// TODO: add a picture of a cat
+				for (String user : users) {
+					Credential userCredential = AuthUtil.getCredential(user);
+					MirrorClient.getMirror(userCredential).timeline()
+							.insert(allUsersItem).queue(batch, callback);
+				}
+
+				batch.execute();
+				message = "Successfully sent cards to " + callback.success
+						+ " users (" + callback.failure + " failed).";
+			}
+
+		} else {
+			String operation = req.getParameter("operation");
+			LOG.warning("Unknown operation specified " + operation);
+			message = "I don't know how to do that";
+		}
+		WebUtil.setFlash(req, message);
+		res.sendRedirect(WebUtil.buildUrl(req, "/"));
+	}
 }
